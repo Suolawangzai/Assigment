@@ -368,7 +368,7 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 			set_addr_rw((unsigned long) sys_call_table);
 			// (Note: More need about interceptor function maybe)
 
-			sys_call_table[syscall] = interceptor;
+			sys_call_table[syscall] = &interceptor;
 			set_addr_ro((unsigned long) sys_call_table);
 			// Modify table entry of that system call indicating intercepted
 			table[syscall].intercepted = 1;
@@ -458,8 +458,8 @@ static int init_function(void) {
 	// Store original syscall at __NR_exit_group in orig_exit_group
 	orig_exit_group = sys_call_table[__NR_exit_group];
 	// Replace positions with my_syscall and my_exit_group
-	sys_call_table[MY_CUSTOM_SYSCALL] = my_syscall;
-	sys_call_table[__NR_exit_group] = my_exit_group;
+	sys_call_table[MY_CUSTOM_SYSCALL] = &my_syscall;
+	sys_call_table[__NR_exit_group] = &my_exit_group;
 	// Set sys_call_table read only (from piazza)
 	set_addr_ro((unsigned long) sys_call_table);
 	spin_unlock(&calltable_lock);
