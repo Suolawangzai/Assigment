@@ -276,7 +276,7 @@ void my_exit_group(int status){
  *     ax, bx, cx, dx, si, di, and bp registers (see the pt_regs struct).
  * - Don't forget to call the original system call, so we allow processes to proceed as normal.
  */
-asmlinkage long interceptor(struct pt_regs reg) {
+asmlinkage long interceptor(struct pt_regs reg){
 	// Check if the syscall is monitored for the current pid
 	int monitored = table[reg.ax].monitored;
 	if(monitored){
@@ -365,7 +365,7 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 			// Replace position in sys_call_table with interceptor function
 			spin_lock(&pidlist_lock);
 			spin_lock(&calltable_lock);
-			set_addr_rw((unsigned long) sys_call_table));
+			set_addr_rw((unsigned long) sys_call_table);
 			// (Note: More need about interceptor function maybe)
 
 			sys_call_table[syscall] = interceptor;
@@ -386,7 +386,7 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 			// Intercepted, the release it and retore entry in sys_call_table
 			spin_lock(&pidlist_lock);
 			spin_lock(&calltable_lock);
-			set_addr_rw((unsigned long) sys_call_table));
+			set_addr_rw((unsigned long) sys_call_table);
 			sys_call_table[syscall] = table[syscall].f;
 			set_addr_ro((unsigned long) sys_call_table);
 			// Modify table entry of that system call indicating intercepted
@@ -451,7 +451,7 @@ long (*orig_custom_syscall)(void);
 static int init_function(void) {
 	// First set sys_call_table writable (from piazza)
 	spin_lock(&calltable_lock);
-	set_addr_rw((unsigned long) sys_call_table));
+	set_addr_rw((unsigned long) sys_call_table);
 	// Store original syscall at MY_CUSTOM_SYSCALL in orig_custom_syscall
 	// (Note: recheck if spin_lock is needed here, how to initialize)
 	orig_custom_syscall = sys_call_table[MY_CUSTOM_SYSCALL];
@@ -494,7 +494,7 @@ static int init_function(void) {
 static void exit_function(void){        
 	// First set sys_call_table writable (from piazza)
 	spin_lock(&calltable_lock);
-	set_addr_rw((unsigned long) sys_call_table));
+	set_addr_rw((unsigned long) sys_call_table);
 	// Restore original syscall at MY_CUSTOM_SYSCALL
 	// (Note: recheck if spin_lock is needed here, how to initialize)
 	sys_call_table[MY_CUSTOM_SYSCALL] = orig_custom_syscall;
@@ -510,7 +510,7 @@ static void exit_function(void){
 	for(i = 0; i <= NR_syscalls; i++){
 		// Restore intercepted function
 		if(table[i].intercepted){
-			set_addr_rw((unsigned long) sys_call_table));
+			set_addr_rw((unsigned long) sys_call_table);
 			sys_call_table[i] = table[i].f;
 			set_addr_ro((unsigned long) sys_call_table);
 			// Destroy monitored pid_list
