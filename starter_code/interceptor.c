@@ -282,7 +282,7 @@ asmlinkage long interceptor(struct pt_regs reg) {
 	if(monitored){
 		if(monitored == 2 || check_pid_monitored(reg.ax, current->pid)){
 			// Log message here
-			log_message(curent->pid, reg.ax, reg.bx, reg.cx, reg.dx, reg.si, reg.di, reg.bp);
+			log_message(curent->pid, reg.ax, reg.bx, reg.cx, reg.dx, reg.si, reg.di, reg.bp)
 		}
 	}
 	// Call original function
@@ -371,7 +371,7 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 			sys_call_table[syscall] = interceptor;
 			set_addr_ro((unsigned long) sys_call_table);
 			// Modify table entry of that system call indicating intercepted
-			table[i].intercepted = 1;
+			table[syscall].intercepted = 1;
 			// (Note: not know any thing else is needed)
 			spin_unlock(&calltable_lock);
 			spin_unlock(&pidlist_lock);
@@ -387,13 +387,13 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 			spin_lock(&pidlist_lock);
 			spin_lock(&calltable_lock);
 			set_addr_rw((unsigned long) sys_call_table));
-			sys_call_table[syscall] = table[i].f;
+			sys_call_table[syscall] = table[syscall].f;
 			set_addr_ro((unsigned long) sys_call_table);
 			// Modify table entry of that system call indicating intercepted
-			table[i].intercepted = 0;
+			table[syscall].intercepted = 0;
 			/* Not sure how to proceed here
-			table[i].monitored = 0;
-			table[i].listcount = 0;
+			table[syscall].monitored = 0;
+			table[syscall].listcount = 0;
 			destroy_list(syscall);
 			*/
 			spin_unlock(&calltable_lock);
