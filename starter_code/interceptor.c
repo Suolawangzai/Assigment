@@ -250,9 +250,9 @@ void (*orig_exit_group)(int);
  * Don't forget to call the original exit_group.
  */
 void my_exit_group(int status){
-	spin_lock(pidlist_lock);
+	spin_lock(&pidlist_lock);
 	del_pid(current->pid);
-	spin_unlock(pidlist_lock);
+	spin_unlock(&pidlist_lock);
 	orig_exit_group(int);
 
 }
@@ -363,8 +363,8 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 			// Not intercepted, then intercept that syscall
 			// (Note: need to ensure synchronization here)
 			// Replace position in sys_call_table with interceptor function
-			spin_lock(pidlist_lock);
-			spin_lock(calltable_lock);
+			spin_lock(&pidlist_lock);
+			spin_lock(&calltable_lock);
 			set_addr_rw((unsigned long) sys_call_table));
 			// (Note: More need about interceptor function maybe)
 
@@ -373,8 +373,8 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 			// Modify table entry of that system call indicating intercepted
 			table[i].intercepted = 1;
 			// (Note: not know any thing else is needed)
-			spin_unlock(calltable_lock);
-			spin_unlock(pidlist_lock);
+			spin_unlock(&calltable_lock);
+			spin_unlock(&pidlist_lock);
 
 		}
 		// Release an intercepted system call
@@ -384,8 +384,8 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 				return -EINVAL;
 			}
 			// Intercepted, the release it and retore entry in sys_call_table
-			spin_lock(pidlist_lock);
-			spin_lock(calltable_lock);
+			spin_lock(&pidlist_lock);
+			spin_lock(&calltable_lock);
 			set_addr_rw((unsigned long) sys_call_table));
 			sys_call_table[syscall] = table[i].f;
 			set_addr_ro((unsigned long) sys_call_table);
@@ -396,8 +396,8 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 			table[i].listcount = 0;
 			destroy_list(syscall);
 			*/
-			spin_unlock(calltable_lock);
-			spin_unlock(pidlist_lock);
+			spin_unlock(&calltable_lock);
+			spin_unlock(&pidlist_lock);
 		}
 
 		// Monitor a systemcall with pid
@@ -450,7 +450,7 @@ long (*orig_custom_syscall)(void);
  */
 static int init_function(void) {
 	// First set sys_call_table writable (from piazza)
-	spin_lock(calltable_lock);
+	spin_lock(&calltable_lock);
 	set_addr_rw((unsigned long) sys_call_table));
 	// Store original syscall at MY_CUSTOM_SYSCALL in orig_custom_syscall
 	// (Note: recheck if spin_lock is needed here, how to initialize)
@@ -462,12 +462,12 @@ static int init_function(void) {
 	sys_call_table[__NR_exit_group] = my_exit_group;
 	// Set sys_call_table read only (from piazza)
 	set_addr_ro((unsigned long) sys_call_table);
-	spin_unlock(calltable_lock);
+	spin_unlock(&calltable_lock);
 	// Initialize table
 	int i;
 	// (Note: to be determined whether < or <= NR_syscalls)
 	// (Note: recheck how to ensure synchronization here)
-	spin_lock(pidlist_lock);
+	spin_lock(&pidlist_lock);
 	for(i = 0; i <= NR_syscalls; i++){
 		table[i].f = sys_call_table[i];
 		table[i].intercepted = 0;
@@ -476,7 +476,7 @@ static int init_function(void) {
 		// Initialize list_head here
 		INIT_LIST_HEAD(&(table[i].my_list));
 	}
-	spin_unlock(pidlist_lock);
+	spin_unlock(&pidlist_lock);
 
 	return 0;
 }
@@ -493,7 +493,7 @@ static int init_function(void) {
  */
 static void exit_function(void){        
 	// First set sys_call_table writable (from piazza)
-	spin_lock(calltable_lock);
+	spin_lock(&calltable_lock);
 	set_addr_rw((unsigned long) sys_call_table));
 	// Restore original syscall at MY_CUSTOM_SYSCALL
 	// (Note: recheck if spin_lock is needed here, how to initialize)
@@ -503,9 +503,10 @@ static void exit_function(void){
 	// Set sys_call_table read only (from piazza)
 	set_addr_ro((unsigned long) sys_call_table);
 	// Destroy all the pid_list
-	spin_unlock(calltable_lock);
+	spin_unlock(&calltable_lock);
 	//spin_lock(pidlist_lock);
-	spin_lock(calltable_lock);
+	spin_lock(&calltable_lock);
+	int i;
 	for(i = 0; i <= NR_syscalls; i++){
 		// Restore intercepted function
 		if(table[i].intercepted){
@@ -519,7 +520,7 @@ static void exit_function(void){
 			}*/
 		}
 	}
-	spin_unlock(calltable_lock);
+	spin_unlock(&calltable_lock);
 	//spin_unlock(pidlist_lock);
 
 }
