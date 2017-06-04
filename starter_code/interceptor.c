@@ -253,7 +253,7 @@ void my_exit_group(int status){
 	spin_lock(&pidlist_lock);
 	del_pid(current->pid);
 	spin_unlock(&pidlist_lock);
-	orig_exit_group(int);
+	orig_exit_group(status);
 
 }
 //----------------------------------------------------------------
@@ -282,7 +282,7 @@ asmlinkage long interceptor(struct pt_regs reg){
 	if(monitored){
 		if(monitored == 2 || check_pid_monitored(reg.ax, current->pid)){
 			// Log message here
-			log_message(curent->pid, reg.ax, reg.bx, reg.cx, reg.dx, reg.si, reg.di, reg.bp)
+			log_message(current->pid, reg.ax, reg.bx, reg.cx, reg.dx, reg.si, reg.di, reg.bp)
 		}
 	}
 	// Call original function
