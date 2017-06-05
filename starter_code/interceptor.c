@@ -357,7 +357,7 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 		// Intercept a syscall
 		if(cmd == REQUEST_SYSCALL_INTERCEPT){
 			// Check if the syscall has already been intercepted
-			if(table[syscall].intercepted){
+			if(table[syscall].intercepted == 1){
 				return -EBUSY;
 			}
 			// Not intercepted, then intercept that syscall
@@ -380,7 +380,7 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 		// Release an intercepted system call
 		if(cmd == REQUEST_SYSCALL_RELEASE){
 			// Check if the syscall has already been intercepted
-			if(table[syscall].intercepted){
+			if(table[syscall].intercepted == 0){
 				return -EINVAL;
 			}
 			// Intercepted, the release it and retore entry in sys_call_table
@@ -509,7 +509,7 @@ static void exit_function(void){
 	int i;
 	for(i = 0; i <= NR_syscalls; i++){
 		// Restore intercepted function
-		if(table[i].intercepted){
+		if(table[i].intercepted == 1){
 			set_addr_rw((unsigned long) sys_call_table);
 			sys_call_table[i] = table[i].f;
 			set_addr_ro((unsigned long) sys_call_table);
