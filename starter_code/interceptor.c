@@ -357,7 +357,7 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 		// Intercept a syscall
 		if(cmd == REQUEST_SYSCALL_INTERCEPT){
 			// Check if the syscall has already been intercepted
-			if(!table[syscall].intercepted){
+			if(table[syscall].intercepted){
 				return -EBUSY;
 			}
 			// Not intercepted, then intercept that syscall
