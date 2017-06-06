@@ -447,7 +447,7 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 					if(check_pid_monitored(syscall, pid)){
 						return -EBUSY;
 					}else{
-						table[syscall].my_list++;
+						table[syscall].listcount++;
 						add_pid_sysc(pid, syscall);
 					}
 				}else if(table[syscall].monitored == 2){
