@@ -447,14 +447,14 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 					if(check_pid_monitored(syscall, pid)){
 						return -EBUSY;
 					}else{
-						table[syscall].list++;
+						table[syscall].my_list++;
 						add_pid_sysc(pid, syscall);
 					}
 				}else if(table[syscall].monitored == 2){
 					// Check if pid in the black list
 					if(check_pid_monitored(syscall, pid)){
 						table[syscall].listcount--;
-						del_pid_sysc(pid_t pid, int sysc);
+						del_pid_sysc(pid, syscall);
 					}else{
 						return -EBUSY;
 					}
