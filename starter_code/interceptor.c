@@ -286,7 +286,7 @@ asmlinkage long interceptor(struct pt_regs reg){
 			// Log message here
 			log_message(current->pid, reg.ax, reg.bx, reg.cx, reg.dx, reg.si, reg.di, reg.bp)
 		}			
-	}else if(monitored == 2{
+	}else if(monitored == 2){
 		if(table[reg.ax].listcount == 0){
 			// Log message here
 			log_message(current->pid, reg.ax, reg.bx, reg.cx, reg.dx, reg.si, reg.di, reg.bp)
