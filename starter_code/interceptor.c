@@ -279,24 +279,25 @@ void my_exit_group(int status){
 asmlinkage long interceptor(struct pt_regs reg){
 	// Check if the syscall is monitored for the current pid
 	int monitored = table[reg.ax].monitored;
-	if(monitored){
-		if(monitored == 1){
-			if(check_pid_monitored(reg.ax, current->pid)){
-				// Log message here
-				log_message(current->pid, reg.ax, reg.bx, reg.cx, reg.dx, reg.si, reg.di, reg.bp)
-			}			
+
+	
+	if(monitored == 1){
+		if(check_pid_monitored(reg.ax, current->pid)){
+			// Log message here
+			log_message(current->pid, reg.ax, reg.bx, reg.cx, reg.dx, reg.si, reg.di, reg.bp)
+		}			
+	}else if(monitored == 2{
+		if(table[reg.ax].listcount == 0){
+			// Log message here
+			log_message(current->pid, reg.ax, reg.bx, reg.cx, reg.dx, reg.si, reg.di, reg.bp)
 		}else{
-			if(table[reg.ax].listcount == 0){
+			if(check_pid_monitored(reg.ax, current->pid) == 0){
 				// Log message here
 				log_message(current->pid, reg.ax, reg.bx, reg.cx, reg.dx, reg.si, reg.di, reg.bp)
-			}else{
-				if(check_pid_monitored(reg.ax, current->pid) == 0){
-					// Log message here
-					log_message(current->pid, reg.ax, reg.bx, reg.cx, reg.dx, reg.si, reg.di, reg.bp)
-				}
 			}
 		}
 	}
+	
 	// Call original function
 	return table[reg.ax].f(reg);
 
@@ -415,7 +416,7 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 		// Monitor a systemcall with pid
 		if(cmd == REQUEST_START_MONITORING){
 			// Check if pid is valid or not
-			if(!(pid_task(find_vpid(pid), PIDTYPE_PID) || pid == 0)){
+			if(!(pid_task(find_vpid(pid), PIDTYPE_PID) || pid != 0)){
 				return -EINVAL;
 			}
 			// Pid is valid
@@ -471,7 +472,7 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 		// Stop monitoring a systemcall with pid
 		if(cmd == REQUEST_STOP_MONITORING){
 			// Check if pid is valid or not
-			if(!(pid_task(find_vpid(pid), PIDTYPE_PID) || pid == 0)){
+			if(!(pid_task(find_vpid(pid), PIDTYPE_PID) || pid != 0)){
 				return -EINVAL;
 			}
 			// Pid is valid
