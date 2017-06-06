@@ -416,7 +416,7 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 		// Monitor a systemcall with pid
 		if(cmd == REQUEST_START_MONITORING){
 			// Check if pid is valid or not
-			if(!(pid_task(find_vpid(pid), PIDTYPE_PID) || pid != 0)){
+			if(!(pid_task(find_vpid(pid), PIDTYPE_PID) && pid != 0)){
 				return -EINVAL;
 			}
 			// Pid is valid
@@ -472,7 +472,7 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 		// Stop monitoring a systemcall with pid
 		if(cmd == REQUEST_STOP_MONITORING){
 			// Check if pid is valid or not
-			if(!(pid_task(find_vpid(pid), PIDTYPE_PID) || pid != 0)){
+			if(!(pid_task(find_vpid(pid), PIDTYPE_PID) && pid != 0)){
 				return -EINVAL;
 			}
 			// Pid is valid
