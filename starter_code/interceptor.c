@@ -419,7 +419,7 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 			if(pid < 0){
 				return -EINVAL;
 			}
-			if(!(pid_task(find_vpid(pid), PIDTYPE_PID) && pid != 0)){
+			if(!pid_task(find_vpid(pid), PIDTYPE_PID) && pid != 0){
 				return -EINVAL;
 			}
 			// Pid is valid
@@ -478,7 +478,7 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 			if(pid < 0){
 				return -EINVAL;
 			}
-			if(!(pid_task(find_vpid(pid), PIDTYPE_PID) && pid != 0)){
+			if(!pid_task(find_vpid(pid), PIDTYPE_PID) && pid != 0){
 				return -EINVAL;
 			}
 			// Pid is valid
