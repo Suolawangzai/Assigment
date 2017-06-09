@@ -279,25 +279,24 @@ void my_exit_group(int status){
 asmlinkage long interceptor(struct pt_regs reg){
 	// Check if the syscall is monitored for the current pid
 	int monitored = table[reg.ax].monitored;
-
-	
-	if(monitored == 1){
-		if(check_pid_monitored(reg.ax, current->pid) == 1){
-			// Log message here
-			log_message(current->pid, reg.ax, reg.bx, reg.cx, reg.dx, reg.si, reg.di, reg.bp)
-		}			
-	}else if(monitored == 2){
-		if(table[reg.ax].listcount == 0){
-			// Log message here
-			log_message(current->pid, reg.ax, reg.bx, reg.cx, reg.dx, reg.si, reg.di, reg.bp)
-		}else{
-			if(check_pid_monitored(reg.ax, current->pid) == 0){
+	if(monitored){
+		if(monitored == 1){
+			if(check_pid_monitored(reg.ax, current->pid)){
 				// Log message here
 				log_message(current->pid, reg.ax, reg.bx, reg.cx, reg.dx, reg.si, reg.di, reg.bp)
+			}			
+		}else{
+			if(table[reg.ax].listcount == 0){
+				// Log message here
+				log_message(current->pid, reg.ax, reg.bx, reg.cx, reg.dx, reg.si, reg.di, reg.bp)
+			}else{
+				if(check_pid_monitored(reg.ax, current->pid) == 0){
+					// Log message here
+					log_message(current->pid, reg.ax, reg.bx, reg.cx, reg.dx, reg.si, reg.di, reg.bp)
+				}
 			}
 		}
 	}
-	
 	// Call original function
 	return table[reg.ax].f(reg);
 
@@ -416,10 +415,7 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 		// Monitor a systemcall with pid
 		if(cmd == REQUEST_START_MONITORING){
 			// Check if pid is valid or not
-			if(pid < 0){
-				return -EINVAL;
-			}
-			if((!pid_task(find_vpid(pid), PIDTYPE_PID)) && (pid != 0)){
+			if(!(pid_task(find_vpid(pid), PIDTYPE_PID) || pid == 0)){
 				return -EINVAL;
 			}
 			// Pid is valid
@@ -428,9 +424,7 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 				if(pid == 0){
 					return -EPERM;
 				}
-				if(check_pid_from_list(current->pid, pid) != 0){
-					return -EPERM;
-				}
+				check_pid_from_list(current->pid, pid);
 			}
 			// Check if syscall is intercepted or not
 			if(table[syscall].intercepted == 0){
@@ -453,11 +447,13 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 					if(check_pid_monitored(syscall, pid)){
 						return -EBUSY;
 					}else{
+						table[syscall].listcount++;
 						add_pid_sysc(pid, syscall);
 					}
 				}else if(table[syscall].monitored == 2){
 					// Check if pid in the black list
 					if(check_pid_monitored(syscall, pid)){
+						table[syscall].listcount--;
 						del_pid_sysc(pid, syscall);
 					}else{
 						return -EBUSY;
@@ -475,10 +471,7 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 		// Stop monitoring a systemcall with pid
 		if(cmd == REQUEST_STOP_MONITORING){
 			// Check if pid is valid or not
-			if(pid < 0){
-				return -EINVAL;
-			}
-			if((!pid_task(find_vpid(pid), PIDTYPE_PID)) && (pid != 0)){
+			if(!(pid_task(find_vpid(pid), PIDTYPE_PID) || pid == 0)){
 				return -EINVAL;
 			}
 			// Pid is valid
@@ -486,9 +479,8 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 			if(current_uid() != 0){
 				if(pid == 0){
 					return -EPERM;
-				}else if(check_pid_from_list(current->pid, pid) != 0){
-					return -EPERM;
 				}
+				check_pid_from_list(current->pid, pid);
 			}
 
 			// Check if syscall is intercepted or not
@@ -507,7 +499,13 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 				if(table[syscall].monitored == 1){
 					// Check if the pid is monitored
 					if(check_pid_monitored(syscall, pid) == 1){
-						del_pid_sysc(pid, syscall);
+						table[syscall].listcount--;
+						if(table[syscall].listcount == 0){
+							table[syscall].monitored = 0;
+							destroy_list(syscall);
+						}else{
+							del_pid_sysc(pid, syscall);
+						}
 
 					}else{
 						return -EINVAL;
@@ -517,6 +515,7 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 					// Check if the pid is monitored (search the blacklist)
 					if(check_pid_monitored(syscall, pid)){
 						// Add pid to the unmonitored list
+						table[syscall].listcount++;
 						add_pid_sysc(pid, syscall);
 					}else{
 						return -EINVAL;
@@ -528,6 +527,10 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 		}
 
 	}
+
+
+
+
 
 	return 0;
 }
