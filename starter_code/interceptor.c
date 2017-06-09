@@ -279,24 +279,25 @@ void my_exit_group(int status){
 asmlinkage long interceptor(struct pt_regs reg){
 	// Check if the syscall is monitored for the current pid
 	int monitored = table[reg.ax].monitored;
-	if(monitored){
-		if(monitored == 1){
-			if(check_pid_monitored(reg.ax, current->pid)){
-				// Log message here
-				log_message(current->pid, reg.ax, reg.bx, reg.cx, reg.dx, reg.si, reg.di, reg.bp)
-			}			
+
+	
+	if(monitored == 1){
+		if(check_pid_monitored(reg.ax, current->pid) == 1){
+			// Log message here
+			log_message(current->pid, reg.ax, reg.bx, reg.cx, reg.dx, reg.si, reg.di, reg.bp)
+		}			
+	}else if(monitored == 2){
+		if(table[reg.ax].listcount == 0){
+			// Log message here
+			log_message(current->pid, reg.ax, reg.bx, reg.cx, reg.dx, reg.si, reg.di, reg.bp)
 		}else{
-			if(table[reg.ax].listcount == 0){
+			if(check_pid_monitored(reg.ax, current->pid) == 0){
 				// Log message here
 				log_message(current->pid, reg.ax, reg.bx, reg.cx, reg.dx, reg.si, reg.di, reg.bp)
-			}else{
-				if(check_pid_monitored(reg.ax, current->pid) == 0){
-					// Log message here
-					log_message(current->pid, reg.ax, reg.bx, reg.cx, reg.dx, reg.si, reg.di, reg.bp)
-				}
 			}
 		}
 	}
+	
 	// Call original function
 	return table[reg.ax].f(reg);
 
@@ -403,11 +404,12 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 			set_addr_ro((unsigned long) sys_call_table);
 			// Modify table entry of that system call indicating intercepted
 			table[syscall].intercepted = 0;
-			// Not sure how to proceed here
+			//
+			/* Not sure how to proceed here
 			table[syscall].monitored = 0;
 			table[syscall].listcount = 0;
 			destroy_list(syscall);
-			//
+			*/
 			spin_unlock(&calltable_lock);
 			spin_unlock(&pidlist_lock);
 		}
@@ -415,7 +417,10 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 		// Monitor a systemcall with pid
 		if(cmd == REQUEST_START_MONITORING){
 			// Check if pid is valid or not
-			if(!(pid_task(find_vpid(pid), PIDTYPE_PID) || pid == 0)){
+			if(pid < 0){
+				return -EINVAL;
+			}
+			if((!pid_task(find_vpid(pid), PIDTYPE_PID)) && (pid != 0)){
 				return -EINVAL;
 			}
 			// Pid is valid
@@ -424,7 +429,9 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 				if(pid == 0){
 					return -EPERM;
 				}
-				check_pid_from_list(current->pid, pid);
+				if(check_pid_from_list(current->pid, pid) != 0){
+					return -EPERM;
+				}
 			}
 			// Check if syscall is intercepted or not
 			if(table[syscall].intercepted == 0){
@@ -444,16 +451,14 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 				spin_lock(&pidlist_lock);
 				if(table[syscall].monitored == 1){
 					// Check if pid in the monitor list
-					if(check_pid_monitored(syscall, pid)){
+					if(check_pid_monitored(syscall, pid) == 1){
 						return -EBUSY;
 					}else{
-						table[syscall].listcount++;
 						add_pid_sysc(pid, syscall);
 					}
 				}else if(table[syscall].monitored == 2){
 					// Check if pid in the black list
-					if(check_pid_monitored(syscall, pid)){
-						table[syscall].listcount--;
+					if(check_pid_monitored(syscall, pid) == 1){
 						del_pid_sysc(pid, syscall);
 					}else{
 						return -EBUSY;
@@ -471,7 +476,10 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 		// Stop monitoring a systemcall with pid
 		if(cmd == REQUEST_STOP_MONITORING){
 			// Check if pid is valid or not
-			if(!(pid_task(find_vpid(pid), PIDTYPE_PID) || pid == 0)){
+			if(pid < 0){
+				return -EINVAL;
+			}
+			if((!pid_task(find_vpid(pid), PIDTYPE_PID)) && (pid != 0)){
 				return -EINVAL;
 			}
 			// Pid is valid
@@ -480,7 +488,9 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 				if(pid == 0){
 					return -EPERM;
 				}
-				check_pid_from_list(current->pid, pid);
+				if(check_pid_from_list(current->pid, pid) != 0){
+					return -EPERM;
+				}
 			}
 
 			// Check if syscall is intercepted or not
@@ -490,8 +500,6 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 
 			if(pid == 0){
 				spin_lock(&pidlist_lock);
-				table[syscall].monitored = 0;
-				table[syscall].listcount = 0;
 				destroy_list(syscall);
 				spin_unlock(&pidlist_lock);
 			}else{
@@ -499,13 +507,7 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 				if(table[syscall].monitored == 1){
 					// Check if the pid is monitored
 					if(check_pid_monitored(syscall, pid) == 1){
-						table[syscall].listcount--;
-						if(table[syscall].listcount == 0){
-							table[syscall].monitored = 0;
-							destroy_list(syscall);
-						}else{
-							del_pid_sysc(pid, syscall);
-						}
+						del_pid_sysc(pid, syscall);
 
 					}else{
 						return -EINVAL;
@@ -513,9 +515,8 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 
 				}else{
 					// Check if the pid is monitored (search the blacklist)
-					if(check_pid_monitored(syscall, pid)){
+					if(check_pid_monitored(syscall, pid) == 0){
 						// Add pid to the unmonitored list
-						table[syscall].listcount++;
 						add_pid_sysc(pid, syscall);
 					}else{
 						return -EINVAL;
@@ -527,10 +528,6 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 		}
 
 	}
-
-
-
-
 
 	return 0;
 }
@@ -623,7 +620,7 @@ static void exit_function(void){
 			set_addr_ro((unsigned long) sys_call_table);
 			// Destroy monitored pid_list
 			//
-			if(table[i].monitored){
+			if(table[i].monitored != 0){
 				destroy_list(i);
 			}//
 		}
